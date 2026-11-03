@@ -281,7 +281,7 @@ async function handleOrderSubmit(e) {
 
 /**
  * Cancel an outstanding order by ID.
- * Called from the order table's cancel button.
+ * Passed to the order table as its cancel button handler.
  * @param {string} orderId - The order ID to cancel
  */
 async function handleCancelOrder(orderId) {
@@ -293,7 +293,6 @@ async function handleCancelOrder(orderId) {
     showToast(err.message, 'error');
   }
 }
-window.handleCancelOrder = handleCancelOrder;
 
 /**
  * Manually trigger a matching run.
@@ -347,7 +346,7 @@ async function refreshDashboard() {
     allTrades = tradeData;
 
     renderSummaryTables(summaryData);
-    renderOutstandingOrders(orderBookData);
+    renderOutstandingOrders(orderBookData, handleCancelOrder);
     renderRecentTrades(tradeData);
     renderDepthChart(summaryData);
 

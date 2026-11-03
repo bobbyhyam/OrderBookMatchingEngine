@@ -29,6 +29,7 @@ Owns REST API routes, request/response models, dependencies, utilities, and stat
 - Converters in `models/converters.py` translate between API models and core domain objects
 - Engine state injected via `get_matching_engine` dependency
 - Frontend code in `static/` is separate from API logic
+- Dashboard code must render API data with DOM APIs (`createElement`, `textContent`) and wire handlers with `addEventListener`; never interpolate API fields into `innerHTML` or inline `on*` attributes
 
 # Verification
 
