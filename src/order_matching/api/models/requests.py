@@ -1,8 +1,12 @@
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_core import PydanticCustomError
+
+from order_matching.order import PRICE_NUMBER_OF_DIGITS
 
 
 class SideStr(StrEnum):
@@ -24,6 +28,18 @@ class OrderBase(BaseModel):
 class LimitOrderRequest(OrderBase):
     order_type: Literal["limit"] = "limit"
     price: float = Field(gt=0)
+
+    @field_validator("price")
+    @classmethod
+    def _check_price_tick(cls, price: float) -> float:
+        exponent = Decimal(repr(price)).as_tuple().exponent
+        if isinstance(exponent, int) and exponent < -PRICE_NUMBER_OF_DIGITS:
+            raise PydanticCustomError(
+                "price_tick",
+                "price must be a multiple of the tick size {tick}",
+                {"tick": 10**-PRICE_NUMBER_OF_DIGITS},
+            )
+        return price
 
 
 class MarketOrderRequest(OrderBase):

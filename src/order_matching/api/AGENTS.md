@@ -19,6 +19,7 @@ Owns REST API routes, request/response models, dependencies, utilities, and stat
 **API Contract:**
 - Single in-memory matching engine instance shared across requests (not thread-safe, educational use only)
 - POST endpoints modify state; GET endpoints read state
+- `/place` rejects limit prices finer than the 0.01 tick with 422 before touching engine state
 - No persistence layer (restart clears state)
 - Interactive docs at `/docs`
 
