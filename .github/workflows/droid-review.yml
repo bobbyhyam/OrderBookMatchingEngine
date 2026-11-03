@@ -1,0 +1,44 @@
+name: Droid Auto Review
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  droid-review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Droid app token
+        id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.DROID_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DROID_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run Droid Auto Review
+        uses: Factory-AI/droid-action@v13
+        with:
+          factory_api_key: ${{ secrets.FACTORY_API_KEY }}
+          github_token: ${{ steps.app.outputs.token }}
+          automatic_review: true
+          automatic_security_review: true
+          review_depth: deep
+          review_model: gpt-6.1-sol
+          security_model: gpt-6.1-sol
+          # Droid's fix PRs are opened by this app; droid-action skips bot PRs unless listed.
+          allowed_bots: "bobby-droid-demo"

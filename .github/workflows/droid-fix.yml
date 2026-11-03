@@ -1,0 +1,89 @@
+name: Droid fix
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: droid-fix-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  fix:
+    # Only a person adding the droid-fix label to an open issue starts a fix.
+    if: >-
+      github.event.label.name == 'droid-fix' &&
+      github.event.issue.state == 'open' &&
+      github.event.sender.type == 'User'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Create Droid app token
+        id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.DROID_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DROID_APP_PRIVATE_KEY }}
+
+      # Pushes made with the app token (not GITHUB_TOKEN) start CI and the review workflow on the PR.
+      - name: Check out main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.app.outputs.token }}
+
+      - name: Commit as the Droid app
+        env:
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          user_id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${user_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --all-groups --all-extras
+
+      - name: Install Droid CLI
+        run: |
+          curl --retry 5 --retry-delay 2 --retry-all-errors -fsSL https://app.factory.ai/cli | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # The issue number is passed in, never the issue text, so issue content can't reach the shell.
+      - name: Fix the issue with Droid
+        env:
+          FACTORY_API_KEY: ${{ secrets.FACTORY_API_KEY }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          droid --version
+          prompt="$(cat .github/droid/fix-issue.md)
+
+          Repository: ${REPOSITORY}
+          Issue number: ${ISSUE_NUMBER}"
+          droid exec --auto high -m claude-opus-5-5 "$prompt"
+
+      - name: Report a failed run on the issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "Droid could not finish a fix for this issue. Run log: ${RUN_URL}"

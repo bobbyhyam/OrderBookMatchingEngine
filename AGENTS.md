@@ -23,11 +23,13 @@
     uv run pytest
     ```
 
-- Run prek on all files before each commit (stage all the files but do not commit):
+- Run prek on all files before each commit:
 
     ```shell
     uv run prek run -v --show-diff-on-failure --all-files
     ```
+
+  In interactive sessions, stage all the files but do not commit. In CI automations (GitHub Actions), commit to a feature branch and open a pull request; never push to `main`.
 
 
 # DOX framework
@@ -121,6 +123,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 **Root-owned files** (no child DOX needed):
 - `docs_src/` - MkDocs documentation generation
-- `.github/` - CI/CD workflows, PR templates, openspec skills
+- `.github/` - CI/CD workflows (including the Droid review, `@droid` tag, and `droid-fix` issue-to-PR workflows), the Droid fix prompt in `.github/droid/`, PR templates, openspec skills
+- `.factory/skills/` - Droid skills, including `security-review-guidelines` for repository-specific security review rules
 - Configuration files: `pyproject.toml`, `.pre-commit-config.yaml`, `mkdocs.yaml`, etc.
 - `README.md`, `CHANGELOG.md`, `LICENSE` - project documentation
