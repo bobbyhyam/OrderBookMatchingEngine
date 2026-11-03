@@ -124,6 +124,6 @@ When the user requests a durable behavior change, record it here or in the relev
 **Root-owned files** (no child DOX needed):
 - `docs_src/` - MkDocs documentation generation
 - `.github/` - CI/CD workflows (including the Droid review, `@droid` tag, and `droid-fix` issue-to-PR workflows), the Droid fix prompt in `.github/droid/`, PR templates, openspec skills
-- `.factory/skills/` - Droid skills: `security-review-guidelines` (repository-specific security review rules) and `file-audit-issues` (filing GitHub issues from audit findings)
+- `.factory/skills/` - Droid skills: `security-review-guidelines` (repository-specific security review rules), `audit-correctness` (trading correctness audit), and `file-audit-issues` (filing GitHub issues from audit findings)
 - Configuration files: `pyproject.toml`, `.pre-commit-config.yaml`, `mkdocs.yaml`, etc.
 - `README.md`, `CHANGELOG.md`, `LICENSE` - project documentation
