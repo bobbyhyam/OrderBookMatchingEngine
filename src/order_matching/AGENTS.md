@@ -28,6 +28,7 @@ Owns the matching engine core logic, data structures, and feature modules (api, 
 - Price-time priority matching is the central algorithm
 - Orders placed via `place()` do not execute until `match()` is called
 - All timestamp-based operations accept `datetime` objects
+- Limit prices use a 0.01 tick (`order.PRICE_NUMBER_OF_DIGITS`); `Order` absorbs float noise but raises `ValueError` for off-tick prices instead of rounding them
 - Unit tests must not access private attributes/methods
 
 # Verification

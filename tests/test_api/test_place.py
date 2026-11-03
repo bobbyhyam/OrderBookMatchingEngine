@@ -1,5 +1,7 @@
+from datetime import datetime
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
 from order_matching.api.models.requests import PlaceRequest
@@ -104,3 +106,72 @@ def test_place_market_order_with_price_rejection(client: TestClient, *, sample_m
     invalid_order["price"] = 100.0
     response = client.post("/place", json={"orders": [invalid_order]})
     assert response.status_code == 422
+
+
+def _limit_order(*, order_id: str, side: str, price: float, timestamp: str) -> dict[str, Any]:
+    return {
+        "order_type": "limit",
+        "order_id": order_id,
+        "trader_id": f"{order_id}-trader",
+        "side": side,
+        "size": 1.0,
+        "price": price,
+        "timestamp": timestamp,
+    }
+
+
+def test_place_preserves_non_crossing_tick_aligned_prices(client: TestClient, *, sample_timestamp: datetime) -> None:
+    timestamp = sample_timestamp.isoformat()
+    orders = [
+        _limit_order(order_id="sell", side="SELL", price=100.04, timestamp=timestamp),
+        _limit_order(order_id="buy", side="BUY", price=100.01, timestamp=timestamp),
+    ]
+    response = client.post("/place", json={"orders": orders})
+    assert response.status_code == 200
+    assert [o["price"] for o in response.json()["orders"]] == [100.04, 100.01]
+
+    match_response = client.post("/match", json={"timestamp": timestamp})
+    assert match_response.status_code == 200
+    assert match_response.json()["trades"] == []
+
+
+def test_place_small_positive_price_is_not_converted_to_zero(client: TestClient, *, sample_timestamp: datetime) -> None:
+    timestamp = sample_timestamp.isoformat()
+    orders = [
+        _limit_order(order_id="sell", side="SELL", price=0.01, timestamp=timestamp),
+        _limit_order(order_id="buy", side="BUY", price=0.01, timestamp=timestamp),
+    ]
+    response = client.post("/place", json={"orders": orders})
+    assert response.status_code == 200
+    assert [o["price"] for o in response.json()["orders"]] == [0.01, 0.01]
+
+    trades = client.post("/match", json={"timestamp": timestamp}).json()["trades"]
+    assert len(trades) == 1
+    assert trades[0]["price"] == 0.01
+
+
+@pytest.mark.parametrize("price", [100.041, 100.005, 0.001, 0.009, 1e-05])
+def test_place_off_tick_price_rejection(
+    client: TestClient, *, sample_limit_order: dict[str, Any], price: float
+) -> None:
+    valid_order = sample_limit_order.copy()
+    valid_order["order_id"] = "valid"
+    invalid_order = sample_limit_order.copy()
+    invalid_order["price"] = price
+    response = client.post("/place", json={"orders": [valid_order, invalid_order]})
+    assert response.status_code == 422
+
+    order_book = client.get("/orders").json()
+    assert order_book["bids"] == {}
+    assert order_book["offers"] == {}
+
+
+@pytest.mark.parametrize("price", [0.01, 0.1, 1.0, 99.99, 100.5, 12345.67])
+def test_place_tick_aligned_price_success(
+    client: TestClient, *, sample_limit_order: dict[str, Any], price: float
+) -> None:
+    order = sample_limit_order.copy()
+    order["price"] = price
+    response = client.post("/place", json={"orders": [order]})
+    assert response.status_code == 200
+    assert response.json()["orders"][0]["price"] == price

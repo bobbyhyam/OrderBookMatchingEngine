@@ -4,7 +4,7 @@ import polars as pl
 import pytest
 
 from order_matching.enums import Execution, Side, Status
-from order_matching.order import LimitOrder, MarketOrder, Order
+from order_matching.order import PRICE_NUMBER_OF_DIGITS, LimitOrder, MarketOrder, Order
 
 
 class TestOrder:
@@ -130,4 +130,25 @@ class TestMarketOrder:
         assert order.trader_id == trader_id
         assert order.execution == Execution.MARKET
         assert order.status == Status.OPEN
-        assert order.price_number_of_digits == 1
+        assert order.price_number_of_digits == PRICE_NUMBER_OF_DIGITS
+
+
+class TestLimitOrderPriceTick:
+    @pytest.mark.parametrize("price", [0.01, 0.1, 1.0, 99.99, 100.01, 100.04, 12345.67])
+    def test_tick_aligned_price_is_preserved(self, *, price: float) -> None:
+        order = LimitOrder(
+            side=Side.BUY, price=price, size=1, timestamp=datetime(2022, 1, 1), order_id="a", trader_id="x"
+        )
+        assert order.price == price
+        assert order.price_number_of_digits == PRICE_NUMBER_OF_DIGITS == 2
+
+    def test_float_noise_is_tolerated(self) -> None:
+        order = LimitOrder(
+            side=Side.BUY, price=0.1 + 0.2, size=1, timestamp=datetime(2022, 1, 1), order_id="a", trader_id="x"
+        )
+        assert order.price == 0.3
+
+    @pytest.mark.parametrize("price", [100.041, 100.005, 0.001, 0.009, 1e-05])
+    def test_off_tick_price_is_rejected(self, *, price: float) -> None:
+        with pytest.raises(ValueError, match="tick"):
+            LimitOrder(side=Side.SELL, price=price, size=1, timestamp=datetime(2022, 1, 1), order_id="a", trader_id="x")
