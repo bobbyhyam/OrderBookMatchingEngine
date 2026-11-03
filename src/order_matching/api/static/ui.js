@@ -108,10 +108,25 @@ export function renderSummaryTables(summaryData) {
 }
 
 /**
+ * Create a table cell whose content is plain text, never parsed as HTML.
+ * @param {string} text - Cell text
+ * @param {Object} attrs - Optional className and title
+ * @returns {HTMLTableCellElement} The cell element
+ */
+function createTextCell(text, { className = '', title = '' } = {}) {
+  const cell = document.createElement('td');
+  if (className) cell.className = className;
+  if (title) cell.title = title;
+  cell.textContent = text;
+  return cell;
+}
+
+/**
  * Render Outstanding orders in the tables with Cancel buttons.
  * @param {Object} orderBookData - Current active bids and offers
+ * @param {Function} onCancel - Called with the order ID when its Cancel button is clicked
  */
-export function renderOutstandingOrders(orderBookData) {
+export function renderOutstandingOrders(orderBookData, onCancel) {
   initDOMElements();
   if (!outstandingOrdersBody) return;
 
@@ -131,24 +146,42 @@ export function renderOutstandingOrders(orderBookData) {
   outstandingList.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   if (outstandingList.length === 0) {
-    outstandingOrdersBody.innerHTML = `<tr><td colspan="6" class="empty-row">No outstanding orders</td></tr>`;
-  } else {
-    outstandingOrdersBody.innerHTML = outstandingList.map(ord => {
-      const badgeClass = ord.side === 'BUY' ? 'badge-buy' : 'badge-sell';
-      return `
-        <tr>
-          <td class="font-mono-val" title="${ord.order_id}">${ord.order_id.substring(0, 10)}</td>
-          <td><span class="${badgeClass}">${ord.side}</span></td>
-          <td class="font-mono-val">${ord.price.toFixed(2)}</td>
-          <td class="font-mono-val">${ord.size.toFixed(1)}</td>
-          <td title="${ord.trader_id}">${ord.trader_id}</td>
-          <td>
-            <button class="btn-cancel" onclick="handleCancelOrder('${ord.order_id}')">Cancel</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+    const emptyCell = createTextCell('No outstanding orders', { className: 'empty-row' });
+    emptyCell.colSpan = 6;
+    const emptyRow = document.createElement('tr');
+    emptyRow.appendChild(emptyCell);
+    outstandingOrdersBody.replaceChildren(emptyRow);
+    return;
   }
+
+  const rows = outstandingList.map(ord => {
+    const row = document.createElement('tr');
+
+    row.appendChild(createTextCell(ord.order_id.substring(0, 10), { className: 'font-mono-val', title: ord.order_id }));
+
+    const sideCell = document.createElement('td');
+    const badge = document.createElement('span');
+    badge.className = ord.side === 'BUY' ? 'badge-buy' : 'badge-sell';
+    badge.textContent = ord.side;
+    sideCell.appendChild(badge);
+    row.appendChild(sideCell);
+
+    row.appendChild(createTextCell(ord.price.toFixed(2), { className: 'font-mono-val' }));
+    row.appendChild(createTextCell(ord.size.toFixed(1), { className: 'font-mono-val' }));
+    row.appendChild(createTextCell(ord.trader_id, { title: ord.trader_id }));
+
+    const actionCell = document.createElement('td');
+    const cancelButton = document.createElement('button');
+    cancelButton.className = 'btn-cancel';
+    cancelButton.textContent = 'Cancel';
+    const orderId = ord.order_id;
+    cancelButton.addEventListener('click', () => onCancel(orderId));
+    actionCell.appendChild(cancelButton);
+    row.appendChild(actionCell);
+
+    return row;
+  });
+  outstandingOrdersBody.replaceChildren(...rows);
 }
 
 /**

@@ -26,6 +26,7 @@ Owns all unit tests, integration tests, and benchmarks validating production cod
 
 - Write tests first when fixing bugs (TDD encouraged)
 - API tests use httpx TestClient
+- Dashboard JS tests (`test_api/test_dashboard_ui.py`) run `static/ui.js` under Node.js with a minimal fake DOM; they skip when `node` is not installed
 - Simulation tests verify trader behavior and market state transitions
 - Coverage tracked via pytest-cov (config in .coveragerc)
 - Run subset with `uv run pytest tests/test_api/` or similar
